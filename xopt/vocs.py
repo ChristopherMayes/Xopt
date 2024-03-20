@@ -480,6 +480,7 @@ class VOCS(XoptBaseModel):
         Returns:
             index: index of best point
             value: value of best point
+            params: input parameters that give the best point
         """
         if self.n_objectives != 1:
             raise NotImplementedError(
@@ -494,7 +495,11 @@ class VOCS(XoptBaseModel):
             obj_name, ascending=ascending_flag[obj]
         )[obj_name][:n]
 
-        return res.index.to_numpy(), res.to_numpy()
+        params = data.iloc[res.index.to_numpy()][self.variable_names].to_dict(
+            orient="records"
+        )[0]
+
+        return res.index.to_numpy(), res.to_numpy(), params
 
     def cumulative_optimum(self, data: pd.DataFrame) -> pd.DataFrame:
         """

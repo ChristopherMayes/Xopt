@@ -138,7 +138,7 @@ class TestNelderMeadGenerator:
         data = X.vocs.variable_data(X.data).to_numpy()
         assert np.array_equal(data, scipy_data)
 
-        idx, best = X.vocs.select_best(X.data)
+        idx, best, _ = X.vocs.select_best(X.data)
         xbest = X.vocs.variable_data(X.data.loc[idx, :]).to_numpy().flatten()
         assert np.array_equal(
             xbest, result.x
@@ -216,7 +216,7 @@ class TestNelderMeadGenerator:
         assert data.shape == scipy_data.shape
         assert np.allclose(data, scipy_data, rtol=0, atol=1e-10)
 
-        idx, best = X.vocs.select_best(X.data)
+        idx, best, _ = X.vocs.select_best(X.data)
         xbest = X.vocs.variable_data(X.data.loc[idx, :]).to_numpy().flatten()
         assert np.array_equal(
             xbest, result.x
