@@ -37,7 +37,9 @@ class Evaluator(XoptBaseModel):
     executor : NormalExecutor
         NormalExecutor or any instantiated Executor object
     vectorized : bool, default=False
-        If true,
+        If true, lists of evaluation points will be sent to the evaluator
+        function to be processed in parallel instead of evaluated seperately via
+        mapping.
     """
 
     function: Callable

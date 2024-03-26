@@ -215,7 +215,6 @@ class VOCS(XoptBaseModel):
 
         for key, val in bounds.items():  # No need to sort here
             a, b = val
-            n = n if n is not None else 1
             x = rng_sample_function(n)
             inputs[key] = x * a + (1 - x) * b
 
@@ -223,7 +222,7 @@ class VOCS(XoptBaseModel):
         if include_constants and self.constants is not None:
             inputs.update(self.constants)
 
-        if n == 1:
+        if n is None:
             return [inputs]
         else:
             return pd.DataFrame(inputs).to_dict("records")

@@ -79,8 +79,9 @@ class StandardModelConstructor(ModelConstructor):
         "model, can optionally specify a dict of specifications",
     )
     custom_noise_prior: Optional[Prior] = Field(
-        None, description="specify custom noise prior for the GP likelihood, "
-                          "overwrites value specified by use_low_noise_prior"
+        None,
+        description="specify custom noise prior for the GP likelihood, "
+        "overwrites value specified by use_low_noise_prior",
     )
 
     model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True)

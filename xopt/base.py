@@ -405,7 +405,12 @@ class Xopt(XoptBaseModel):
         else:
             return new_data
 
-    def random_evaluate(self, n_samples=1, seed=None, **kwargs):
+    def random_evaluate(
+        self,
+        n_samples=None,
+        seed=None,
+        custom_bounds: dict = None,
+    ):
         """
         Convenience method to generate random inputs using VOCs and evaluate them.
 
@@ -419,8 +424,9 @@ class Xopt(XoptBaseModel):
             The number of random samples to generate.
         seed : int, optional
             The random seed for reproducibility.
-        **kwargs
-            Additional keyword arguments for generating random inputs.
+        custom_bounds : dict, optional
+            Dictionary of vocs-like ranges for random sampling
+
 
         Returns
         -------
@@ -428,7 +434,9 @@ class Xopt(XoptBaseModel):
             The results of the evaluations added to the internal DataFrame.
 
         """
-        random_inputs = self.vocs.random_inputs(n_samples, seed=seed, **kwargs)
+        random_inputs = self.vocs.random_inputs(
+            n_samples, seed=seed, custom_bounds=custom_bounds, include_constants=True
+        )
         result = self.evaluate_data(random_inputs)
         return result
 

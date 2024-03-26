@@ -63,7 +63,11 @@ class TestVOCS(object):
         data = pd.DataFrame(vocs.random_inputs(n_samples))
         assert data.shape == (n_samples, vocs.n_inputs)
 
-        TEST_VOCS_BASE.random_inputs(5, include_constants=False)
+        test_inputs = TEST_VOCS_BASE.random_inputs(5, include_constants=False)
+        assert len(test_inputs) == 5
+
+        test_inputs = TEST_VOCS_BASE.random_inputs()
+        assert isinstance(test_inputs[0]["x1"], float)
 
     def test_serialization(self):
         vocs = deepcopy(TEST_VOCS_BASE)
