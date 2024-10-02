@@ -4,13 +4,14 @@ import time
 import warnings
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 import torch
 from botorch.acquisition import FixedFeatureAcquisitionFunction, qUpperConfidenceBound
 from botorch.models.model import Model
 from botorch.sampling import get_sampler
+from botorch.utils.multi_objective import is_non_dominated
 from botorch.utils.multi_objective.box_decompositions import DominatedPartitioning
 from gpytorch import Module
 from pydantic import Field, field_validator, PositiveInt, SerializeAsAny
@@ -407,8 +408,13 @@ class BayesianGenerator(Generator, ABC):
         # get acquisition function
         acq_funct = self.get_acquisition(model)
 
+        # get initial candidates to start acquisition function optimization
+        initial_points = self._get_initial_conditions(n_candidates)
+
         # get candidates
-        candidates = self.numerical_optimizer.optimize(acq_funct, bounds, n_candidates)
+        candidates = self.numerical_optimizer.optimize(
+            acq_funct, bounds, n_candidates, batch_initial_conditions=initial_points
+        )
         return candidates
 
     def get_training_data(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -535,6 +541,11 @@ class BayesianGenerator(Generator, ABC):
     def visualize_model(self, **kwargs):
         """displays the GP models"""
         return visualize_generator_model(self, **kwargs)
+
+    def _get_initial_conditions(self, n_candidates=1) -> Union[Tensor, None]:
+        """overwrite if algorithm should specifiy initial candidates for optimizing
+        the acquisition function"""
+        return None
 
     def _process_candidates(self, candidates: Tensor):
         """process pytorch candidates from optimizing the acquisition function"""
@@ -776,30 +787,55 @@ class MultiObjectiveBayesianGenerator(BayesianGenerator, ABC):
 
         return torch.tensor(pt, **self._tkwargs)
 
-    def calculate_hypervolume(self):
-        """compute hypervolume given data"""
-        objective_data = torch.tensor(
-            self.vocs.objective_data(self.data, return_raw=True).to_numpy()
+    def _get_scaled_data(self):
+        """get scaled input/objective data for use with botorch logic which assumes
+        maximization for each objective"""
+        var_df, obj_df, _, _ = self.vocs.extract_data(
+            self.data, return_valid=True, return_raw=True
         )
 
-        # hypervolume must only take into account feasible data points
-        if self.vocs.n_constraints > 0:
-            objective_data = objective_data[
-                self.vocs.feasibility_data(self.data)["feasible"].to_list()
-            ]
+        variable_data = torch.tensor(var_df[self.vocs.variable_names].to_numpy())
+        objective_data = torch.tensor(obj_df[self.vocs.objective_names].to_numpy())
+        weights = set_botorch_weights(self.vocs).to(**self._tkwargs)[
+            : self.vocs.n_objectives
+        ]
+        return variable_data, objective_data * weights
 
-        n_objectives = self.vocs.n_objectives
-        weights = torch.zeros(n_objectives)
-        weights = set_botorch_weights(self.vocs).to(**self._tkwargs)
-        objective_data = objective_data * weights
+    def calculate_hypervolume(self):
+        """compute hypervolume given data"""
 
         # compute hypervolume
         bd = DominatedPartitioning(
-            ref_point=self.torch_reference_point, Y=objective_data
+            ref_point=self.torch_reference_point, Y=self._get_scaled_data()[1]
         )
         volume = bd.compute_hypervolume().item()
 
         return volume
+
+    def get_pareto_front(self):
+        """compute the pareto front x/y values given data"""
+        variable_data, objective_data = self._get_scaled_data()
+        obj_data = torch.vstack(
+            (self.torch_reference_point.unsqueeze(0), objective_data)
+        )
+        var_data = torch.vstack(
+            (
+                torch.full_like(variable_data[0], float("Nan")).unsqueeze(0),
+                variable_data,
+            )
+        )
+        non_dominated = is_non_dominated(obj_data)
+
+        weights = set_botorch_weights(self.vocs).to(**self._tkwargs)[
+            : self.vocs.n_objectives
+        ]
+
+        # note need to undo weights for real number output
+        # only return values if non nan values exist
+        if torch.all(torch.isnan(var_data[non_dominated])):
+            return None, None
+        else:
+            return var_data[non_dominated], obj_data[non_dominated] / weights
 
 
 def formatted_base_docstring():

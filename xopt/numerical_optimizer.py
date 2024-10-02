@@ -15,7 +15,9 @@ class NumericalOptimizer(XoptBaseModel, ABC):
     model_config = ConfigDict(extra="forbid")
 
     @abstractmethod
-    def optimize(self, function: AcquisitionFunction, bounds: Tensor, n_candidates=1):
+    def optimize(
+        self, function: AcquisitionFunction, bounds: Tensor, n_candidates=1, **kwargs
+    ):
         """optimize a function to produce a number of candidate points that
         minimize the function"""
         pass
@@ -33,7 +35,7 @@ class LBFGSOptimizer(NumericalOptimizer):
 
     model_config = ConfigDict(validate_assignment=True)
 
-    def optimize(self, function, bounds, n_candidates=1):
+    def optimize(self, function, bounds, n_candidates=1, **kwargs):
         assert isinstance(bounds, Tensor)
         if len(bounds) != 2:
             raise ValueError("bounds must have the shape [2, ndim]")
@@ -46,6 +48,7 @@ class LBFGSOptimizer(NumericalOptimizer):
             num_restarts=self.n_restarts,
             timeout_sec=self.max_time,
             options={"maxiter": self.max_iter},
+            **kwargs,
         )
         return candidates
 
@@ -67,7 +70,7 @@ class GridOptimizer(NumericalOptimizer):
         10, description="number of grid points per axis used for optimization"
     )
 
-    def optimize(self, function, bounds, n_candidates=1):
+    def optimize(self, function, bounds, n_candidates=1, **kwargs):
         assert isinstance(bounds, Tensor)
         # create mesh
         if len(bounds) != 2:

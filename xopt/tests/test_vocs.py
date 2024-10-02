@@ -346,3 +346,37 @@ class TestVOCS(object):
             vocs.denormalize_inputs(normed_data)[vocs.variable_names].to_numpy(),
             test_data[vocs.variable_names].to_numpy(),
         ).all()
+
+    def test_extract_data(self):
+        vocs = deepcopy(TEST_VOCS_BASE)
+        test_data = pd.DataFrame(
+            {
+                "x1": [0.1, 0.2, 0.4, 0.4],
+                "x2": [0.1, 0.2, 0.3, 0.2],
+                "c1": [1.0, 0.0, 1.0, 0.0],
+                "y1": [0.5, 0.1, 1.0, 1.5],
+            }
+        )
+
+        # test default functionality
+        data = vocs.extract_data(test_data)
+        assert set(data[0].keys()) == {"x1", "x2"}
+        assert set(data[1].keys()) == {"y1"}
+        assert set(data[2].keys()) == {"c1"}
+        for ele in data[:-1]:  # ignore observable data
+            assert len(ele) == 4
+
+        # test return_valid functionality
+        data = vocs.extract_data(test_data, return_valid=True)
+        assert data[0]["x1"].to_list() == [0.1, 0.4]
+        assert data[1]["y1"].to_list() == [0.5, 1.0]
+
+        for ele in data[:-1]:  # ignore observable data
+            assert len(ele) == 2
+
+        # test w/o constraints
+        vocs = deepcopy(TEST_VOCS_BASE)
+        vocs.constraints = {}
+        data = vocs.extract_data(test_data)
+        assert len(data[0]) == 4
+        assert data[2].empty

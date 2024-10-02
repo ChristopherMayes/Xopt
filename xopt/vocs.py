@@ -530,7 +530,7 @@ class VOCS(XoptBaseModel):
         """
         validate_input_data(self, input_points)
 
-    def extract_data(self, data: pd.DataFrame, return_raw=False):
+    def extract_data(self, data: pd.DataFrame, return_raw=False, return_valid=False):
         """
         split dataframe into seperate dataframes for variables, objectives and
         constraints based on vocs - objective data is transformed based on
@@ -542,6 +542,9 @@ class VOCS(XoptBaseModel):
                 Dataframe to be split
             return_raw : bool, optional
                 If True, return untransformed objective data
+            return_valid : bool, optional
+                If True, only return data that satisfies all of the contraint
+                conditions.
 
         Returns
         -------
@@ -555,7 +558,18 @@ class VOCS(XoptBaseModel):
         variable_data = self.variable_data(data, "")
         objective_data = self.objective_data(data, "", return_raw)
         constraint_data = self.constraint_data(data, "")
-        return variable_data, objective_data, constraint_data
+        observable_data = self.observable_data(data, "")
+
+        if return_valid:
+            feasable_status = self.feasibility_data(data)["feasible"]
+            return (
+                variable_data[feasable_status],
+                objective_data[feasable_status],
+                constraint_data[feasable_status],
+                observable_data[feasable_status],
+            )
+
+        return variable_data, objective_data, constraint_data, observable_data
 
     def select_best(self, data: pd.DataFrame, n: int = 1):
         """
